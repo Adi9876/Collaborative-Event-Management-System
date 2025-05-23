@@ -1,3 +1,4 @@
-.env
 /venv
 /myenv
+config.bat
+node_modules

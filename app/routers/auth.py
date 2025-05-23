@@ -67,4 +67,51 @@ async def login(
         "access_token": access_token,
         "token_type": "bearer",
         "expires_at": datetime.utcnow() + expires_delta
-    } 
+    }
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(
+    current_token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> Any:
+    try:
+        # Verify the current token
+        token_data = await verify_token(current_token)
+        user = db.query(UserModel).filter(UserModel.username == token_data.username).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+        
+        # Create new token
+        expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.username, "role": user.role.value},
+            expires_delta=expires_delta
+        )
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_at": datetime.utcnow() + expires_delta
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+@router.post("/logout")
+async def logout(
+    current_token: str = Depends(oauth2_scheme)
+) -> Any:
+    # In a real application, you might want to:
+    # 1. Add the token to a blacklist
+    # 2. Clear any session data
+    # 3. Invalidate refresh tokens
+    
+    # For now, we'll just return a success message
+    # The client should remove the token from their storage
+    return {"message": "Successfully logged out"} 
