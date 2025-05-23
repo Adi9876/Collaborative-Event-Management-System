@@ -54,6 +54,7 @@ def create_event(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
+    # Create event
     db_event = Event(**event.dict(), owner_id=current_user.id)
     db.add(db_event)
     db.commit()
@@ -71,6 +72,14 @@ def create_event(
         created_by=current_user.id
     )
     db.add(version)
+    
+    # Automatically create owner permission
+    owner_permission = EventPermission(
+        event_id=db_event.id,
+        user_id=current_user.id,
+        role=Role.OWNER
+    )
+    db.add(owner_permission)
     db.commit()
     
     return db_event
@@ -196,12 +205,34 @@ def share_event(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
+    # Check if event exists
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
+
+    # Check if user has permission to share
     if not check_permission(db, event_id, current_user.id, Role.OWNER):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
         )
     
+    # Check if permission already exists
+    existing_permission = db.query(EventPermission).filter(
+        EventPermission.event_id == event_id,
+        EventPermission.user_id == permission.user_id
+    ).first()
+    
+    if existing_permission:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already has permissions for this event"
+        )
+    
+    # Create new permission
     db_permission = EventPermission(
         event_id=event_id,
         user_id=permission.user_id,

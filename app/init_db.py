@@ -113,6 +113,23 @@ def init_db():
 
         # Create some permissions
         permissions = [
+            # Owner permissions for all events
+            EventPermission(
+                event_id=1,
+                user_id=1,
+                role=Role.OWNER
+            ),
+            EventPermission(
+                event_id=2,
+                user_id=1,
+                role=Role.OWNER
+            ),
+            EventPermission(
+                event_id=3,
+                user_id=2,
+                role=Role.OWNER
+            ),
+            # Other permissions
             EventPermission(
                 event_id=1,
                 user_id=2,
